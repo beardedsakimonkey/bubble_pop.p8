@@ -1,47 +1,25 @@
--- TODO:
--- - big particles
--- - unique particle color per bubble
--- - slow start bubble spawning
--- - white bubble outline on pop
-
-Black      = 0
-DarkBlue   = 1
-DarkPurple = 2
-DarkGreen  = 3
-Brown      = 4
-DarkGray   = 5
-LightGray  = 6
-White      = 7
-Red        = 8
-Orange     = 9
-Yellow     = 10
-Green      = 11
-Blue       = 12
-Indigo     = 13
-Pink       = 14
-Peach      = 15
+Black,DarkBlue,DarkPurple,DarkGreen,Brown,DarkGray,LightGray,White,Red,Orange,
+Yellow,Green,Blue,Indigo,Pink,Peach = 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 
 bbls={}
 prts={}
+prt_themes = {}
 f=0
-
-max_fake=44
-min_top=0
-prt_colors = {White,Red,White,Pink,White,Orange,White,Yellow,White,
-              Green,White,Blue,Blue,Indigo,DarkBlue,DarkBlue}
+popped=0
 
 function dbg(msg)
 	add(dbg_msgs, msg)
 end
 
 function _init()
-	poke(0X5f5d, 3) -- key repeat delay
+	poke(0X5f5d, 8) -- key repeat delay
 	poke(0x5f2e, 1) -- hidden palette
+	init_particle_themes()
 end
 
 function calc_top(bbl)
 	return not bbl.fake and 0 or
-	       min_top + flr(bbl.x<64 and bbl.x*2 or 128-((bbl.x-64)*2))
+	       flr(bbl.x<64 and bbl.x*2 or 128-((bbl.x-64)*2))
 end
 
 function gen_fake_x()
@@ -65,7 +43,7 @@ end
 
 function spawn_bubbles()
 	local num_fake, num_real = count_bubbles()
-	while num_fake<max_fake do
+	while num_fake<44 do
 		num_fake += 1
 		local bbl= {
 			x=gen_fake_x(), y=130,
@@ -114,21 +92,77 @@ function update_bubbles()
 	end
 end
 
+function draw_fake_bubble(bbl)
+	circ(bbl.x, bbl.y, bbl.r, bbl.c)
+end
+
+function draw_real_bubble(bbl)
+	if bbl.r>2 then -- avoid flicker
+		fillp(▒)
+		circfill(bbl.x, bbl.y, bbl.r, DarkBlue)
+		fillp(0)
+	end
+	circ(bbl.x, bbl.y, bbl.r, bbl.c)
+	-- sparkle
+	if not bbl.fake and bbl.r>3 then
+		local r = mid(bbl.r\6, 0, 1)
+		circ(flr(bbl.x)+bbl.r/2,
+		     ceil(bbl.y)-bbl.r/2,
+		     r, LightGray)
+	end
+end
+
+function draw_bubbles()
+	foreach(bbls, function(bbl)
+		if bbl.fake then
+			draw_fake_bubble(bbl)
+		else
+			draw_real_bubble(bbl)
+		end
+	end)
+end
+
 -- particles -------------------------------------------------------------------
 
+function init_particle_themes()
+	local base_themes = {
+		{Red,Pink,Orange},
+		{Yellow,Green,DarkGreen},
+		{Blue,Indigo,Peach},
+	}
+	for base_theme in all(base_themes) do
+		local theme = {}
+		for _=1,3 do
+			for i,c in ipairs(base_theme) do
+				add(theme, c)
+				if i%3==0 then
+					add(theme, White)
+				end
+			end
+		end
+		for _=1,5 do
+			add(theme, DarkBlue)
+		end
+		add(prt_themes, theme)
+	end
+end
+
 function spawn_particles(bbl)
-	for _=1, bbl.r*4 do
+	local theme = prt_themes[popped % #prt_themes + 1]
+	for _=1, max(5, bbl.r*3) do
 		local v = rnd()
 		local xoff = cos(v)*bbl.r
 		local yoff = sin(v)*bbl.r
 		add(prts, {
 			x=bbl.x+xoff,
 			y=bbl.y+yoff,
-			dx=(xoff>0 and 1 or -1) * rnd(bbl.r/4),
-			dy=(yoff>0 and 1 or -1) * rnd(bbl.r/4),
+			dx=rnd(bbl.r/8) * (xoff>0 and 1 or -1),
+			dy=rnd(bbl.r/8) * (yoff>0 and 1 or -1),
+			r=rnd(2)\1,
 			c=nil,
+			theme=theme,
 			t=0,
-			max_a=10+rnd(4),
+			max_t=20+rnd(10)\1,
 		})
 	end
 end
@@ -137,11 +171,21 @@ function update_particles()
 	for prt in all(prts) do
 		prt.x += prt.dx
 		prt.y += prt.dy
+		prt.y += 1/8
 		prt.t += 1
-		prt.c = prt_colors[flr(prt.t/prt.max_a * #prt_colors)+1]
-		if prt.t >= prt.max_a then
+		prt.c = prt.theme[flr(prt.t/prt.max_t * #prt.theme)+1]
+		if prt.r==1 and (prt.t/prt.max_t)>0.4 then
+			prt.r = 0
+		end
+		if prt.t >= prt.max_t then
 			del(prts, prt)
 		end
+	end
+end
+
+function draw_particles()
+	for prt in all(prts) do
+		circfill(prt.x, prt.y, prt.r, prt.c)
 	end
 end
 
@@ -163,6 +207,7 @@ function pop_bubble()
 	if bbl then
 		spawn_particles(bbl)
 		del(bbls, bbl)
+		popped += 1
 	end
 end
 
@@ -177,40 +222,10 @@ function _update()
 	f+=1
 end
 
-function draw_fake_bubble(bbl)
-	circfill(bbl.x, bbl.y, bbl.r, bbl.c)
-end
-
-function draw_real_bubble(bbl)
-	if bbl.r>2 then -- avoid flicker
-		fillp(▒)
-		circfill(bbl.x, bbl.y, bbl.r, DarkBlue)
-		fillp(0)
-	end
-	circ(bbl.x, bbl.y, bbl.r, bbl.c)
-	-- sparkle
-	if not bbl.fake and bbl.r>3 then
-		local r = mid(bbl.r\6, 0, 1)
-		circ(flr(bbl.x)+bbl.r/2,
-		ceil(bbl.y)-bbl.r/2,
-		r, LightGray)
-	end
-end
-
-function draw_bubbles()
-	foreach(bbls, function(bbl)
-		if bbl.fake then
-			draw_fake_bubble(bbl)
-		else
-			draw_real_bubble(bbl)
-		end
-	end)
-end
-
-function draw_particles()
-	for prt in all(prts) do
-		pset(prt.x, prt.y, prt.c)
-	end
+function draw_plants()
+	local w, h, scale = 25, 30, 1.4
+	sspr(8, 0, w, h, 94, 128-flr(h*scale), w*scale, h*scale, true)
+	sspr(8, 0, w, h, 0, 128-h, w, h)
 end
 
 function _draw()
@@ -218,5 +233,7 @@ function _draw()
 	cls(Brown)
 	draw_bubbles()
 	draw_particles()
+	draw_plants()
+	print(popped, 127-(#tostring(popped)*4), 2, DarkBlue)
 	cursor(0, 0, 9); for msg in all(dbg_msgs) do print(msg) end
 end
