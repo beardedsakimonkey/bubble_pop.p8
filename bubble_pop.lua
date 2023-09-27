@@ -5,31 +5,15 @@ bbls={}
 prts={}
 prt_themes = {}
 f=0
-popped=0
+cartdata('tubeman_bubble_pop')
+score=dget(0) or 0
 BG=Brown
-
-function dbg(msg)
-	add(dbg_msgs, msg)
-end
 
 function _init()
 	poke(0X5f5d, 8) -- key repeat delay
 	poke(0x5f2e, 1) -- hidden palette
 	music(0)
-	if cartdata('tubeman_bubble_pop') then
-		popped=dget(0)
-	end
 	init_particle_themes()
-end
-
-function calc_top(bbl)
-	return not bbl.fake and 0 or
-	       flr(bbl.x<64 and bbl.x*2 or 128-((bbl.x-64)*2))
-end
-
-function gen_fake_x()
-	local x = rnd(64)\1 + rnd(64)\1
-	return x<64 and 64-x or 64-(x-64)+64
 end
 
 function count_bubbles()
@@ -51,29 +35,26 @@ function spawn_bubbles()
 	local num_fake, num_real = count_bubbles()
 	while num_fake<44 do
 		num_fake += 1
+		local x = rnd(64)\1 + rnd(64)\1
 		local bbl= {
-			x=gen_fake_x(), y=130,
+			x=x<64 and 64-x or 64-(x-64)+64, y=130,
 			dx=nil, dy=nil,
 			r=0, max_r=rnd(4)\1,
 			t=0,
-			c=DarkBlue,
 			fake=true,
 			p=rnd(), -- phase offset
-			top=nil,
 		}
 		add(bbls, bbl, 1)
 	end
 
-	if f%(5+flr(sqrt(num_real)*2))==0 then
+	if f%flr(sqrt(num_real)*2)==0 then
 		add(bbls, {
 			x=64+flr(rnd(64))-32, y=130,
 			dx=nil, dy=nil,
 			r=0, max_r=999,
 			t=0,
-			c=Blue,
 			fake=false,
 			p=rnd(),
-			top=0,
 			dead_t=nil,
 		})
 	end
@@ -81,11 +62,12 @@ end
 
 function update_bubbles()
 	for bbl in all(bbls) do
-		if bbl.dead_t then bbl.dead_t+=1 end
+		if (bbl.dead_t) bbl.dead_t+=1
 		local t = bbl.fake and bbl.t/4 or bbl.t
 		local slow = bbl.fake and 8-bbl.max_r or 2
 		bbl.dx = cos(bbl.p+t/360*4) * sin(bbl.p+t/360) / slow
 		bbl.dy = (cos(bbl.p+t/180*4) * sin(bbl.p+t/180))/4 - 2*bbl.p / slow
+		if (not bbl.fake) bbl.dy = min(-0.2, bbl.dy)
 		bbl.x += bbl.dx
 		bbl.y += bbl.dy
 		local v = bbl.fake and 125 or 130
@@ -93,8 +75,9 @@ function update_bubbles()
 			(v - min(v, bbl.y))\8,
 			0, bbl.max_r)
 		bbl.t += 1
-		bbl.top = calc_top(bbl)
-		if bbl.y+bbl.r < bbl.top then
+		local top = not bbl.fake and 0
+		            or flr(bbl.x<64 and bbl.x*2 or 128-((bbl.x-64)*2))
+		if bbl.y+bbl.r < top then
 			del(bbls, bbl)
 		end
 	end
@@ -102,17 +85,15 @@ end
 
 function draw_fake_bubble(bbl)
 	circfill(bbl.x, bbl.y, bbl.r, BG)
-	circ(bbl.x, bbl.y, bbl.r, bbl.c)
+	circ(bbl.x, bbl.y, bbl.r, DarkBlue)
 end
 
 function draw_real_bubble(bbl)
 	local r = bbl.r-(bbl.dead_t or 0)
-	if r>2 then -- avoid flicker
-		fillp(▒)
-		circfill(bbl.x, bbl.y, r, DarkBlue)
-		fillp(0)
-	end
-	circ(bbl.x, bbl.y, r, bbl.dead_t and White or bbl.c)
+	fillp(▒)
+	circfill(bbl.x, bbl.y, r, DarkBlue)
+	fillp(0)
+	circ(bbl.x, bbl.y, r, bbl.dead_t and White or Blue)
 	-- sparkle
 	if r>3 then
 		local sr = mid(r\6, 0, 1)
@@ -123,13 +104,13 @@ function draw_real_bubble(bbl)
 end
 
 function draw_bubbles()
-	foreach(bbls, function(bbl)
+	for bbl in all(bbls) do
 		if bbl.fake then
 			draw_fake_bubble(bbl)
 		else
 			draw_real_bubble(bbl)
 		end
-	end)
+	end
 end
 
 -- particles -------------------------------------------------------------------
@@ -150,7 +131,7 @@ function init_particle_themes()
 				end
 			end
 		end
-		for _=1,8 do
+		for _=1,3 do
 			add(theme, DarkBlue)
 		end
 		add(prt_themes, theme)
@@ -158,7 +139,7 @@ function init_particle_themes()
 end
 
 function spawn_particles(bbl)
-	local theme = prt_themes[popped % #prt_themes + 1]
+	local theme = prt_themes[score % #prt_themes + 1]
 	for _=1, max(5, bbl.r*3) do
 		local v = rnd()
 		local xoff = cos(v)*bbl.r
@@ -173,7 +154,7 @@ function spawn_particles(bbl)
 			c=nil,
 			theme=theme,
 			t=0,
-			max_t=20+rnd(10)\1,
+			max_t=5+rnd(20)\1,
 		})
 	end
 end
@@ -204,7 +185,7 @@ end
 function highest_bubble()
 	local highest
 	foreach(bbls, function(bbl)
-		if bbl.fake or bbl.dead_t then return end
+		if (bbl.fake or bbl.dead_t) return
 		if not highest or bbl.y<highest.y then
 			highest = bbl
 		end
@@ -215,23 +196,22 @@ end
 function pop_bubble()
 	local bbl = highest_bubble()
 	if bbl then
-		popped+=1
+		score+=1
 		bbl.dead_t=0
 		sfx(3)
-		dset(0, popped)
+		dset(0, score)
 	end
 end
 
 function _update()
-	dbg_msgs={}
 	for bbl in all(bbls) do
 		if bbl.dead_t==4 then
 			spawn_particles(bbl)
 			del(bbls, bbl)
 		end
 	end
-	if btnp(🅾️) then pop_bubble() end
-	if btnp(❎) then pop_bubble() end
+	if (btnp(🅾️)) pop_bubble()
+	if (btnp(❎)) pop_bubble()
 	spawn_bubbles()
 	update_bubbles()
 	update_particles()
@@ -243,6 +223,5 @@ function _draw()
 	cls(BG)
 	draw_bubbles()
 	draw_particles()
-	print(popped, 127-(#tostring(popped)*4), 2, DarkBlue)
-	cursor(0, 0, 9); for msg in all(dbg_msgs) do print(msg) end
+	print(score, 127-(#tostring(score)*4), 2, DarkBlue)
 end
