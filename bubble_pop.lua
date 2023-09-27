@@ -16,6 +16,9 @@ function _init()
 	poke(0X5f5d, 8) -- key repeat delay
 	poke(0x5f2e, 1) -- hidden palette
 	music(0)
+	if cartdata('tubeman_bubble_pop') then
+		popped=dget(0)
+	end
 	init_particle_themes()
 end
 
@@ -215,6 +218,7 @@ function pop_bubble()
 		popped+=1
 		bbl.dead_t=0
 		sfx(3)
+		dset(0, popped)
 	end
 end
 
@@ -226,9 +230,8 @@ function _update()
 			del(bbls, bbl)
 		end
 	end
-	if btnp(🅾️) or btnp(❎) then
-		pop_bubble()
-	end
+	if btnp(🅾️) then pop_bubble() end
+	if btnp(❎) then pop_bubble() end
 	spawn_bubbles()
 	update_bubbles()
 	update_particles()
