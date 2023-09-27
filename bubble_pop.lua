@@ -15,6 +15,7 @@ end
 function _init()
 	poke(0X5f5d, 8) -- key repeat delay
 	poke(0x5f2e, 1) -- hidden palette
+	music(0)
 	init_particle_themes()
 end
 
