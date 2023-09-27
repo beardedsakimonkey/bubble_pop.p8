@@ -214,6 +214,7 @@ function pop_bubble()
 	if bbl then
 		popped+=1
 		bbl.dead_t=0
+		sfx(3)
 	end
 end
 
@@ -225,7 +226,7 @@ function _update()
 			del(bbls, bbl)
 		end
 	end
-	if btnp(🅾️) then
+	if btnp(🅾️) or btnp(❎) then
 		pop_bubble()
 	end
 	spawn_bubbles()
