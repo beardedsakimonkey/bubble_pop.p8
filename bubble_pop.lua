@@ -235,18 +235,11 @@ function _update()
 	f+=1
 end
 
-function draw_plants()
-	local w, h, scale = 25, 30, 1.4
-	sspr(8, 0, w, h, 94, 128-flr(h*scale), w*scale, h*scale, true)
-	sspr(8, 0, w, h, 0, 128-h, w, h)
-end
-
 function _draw()
 	pal(BG, 129, 1)
 	cls(BG)
 	draw_bubbles()
 	draw_particles()
-	draw_plants()
 	print(popped, 127-(#tostring(popped)*4), 2, DarkBlue)
 	cursor(0, 0, 9); for msg in all(dbg_msgs) do print(msg) end
 end
