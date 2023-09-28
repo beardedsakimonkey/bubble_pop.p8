@@ -212,7 +212,7 @@ function draw_config_item(i, _x, _y)
 	local v = cfgs[i].v
 	for j=1,3 do
 		local x = x+(j-1)*5
-		rectfill(x, y, x+3, y, v>=j and Green or DarkBlue)
+		line(x, y, x+3, y, v>=j and Green or DarkBlue)
 	end
 	pal(0)
 end
@@ -237,7 +237,7 @@ function highest_bubble()
 end
 
 function pop_bubbles()
-	for _=0,cfgs[multipop].v do
+	for _=1,shl(1, cfgs[multipop].v) do
 		local bbl = highest_bubble()
 		if bbl then
 			score+=1
