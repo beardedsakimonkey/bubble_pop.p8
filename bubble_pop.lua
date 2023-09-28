@@ -96,6 +96,9 @@ end
 
 function draw_real_bubble(bbl)
 	local r = bbl.r-(bbl.dead_t or 0)
+	fillp(▒)
+	circfill(bbl.x, bbl.y, r, DarkBlue)
+	fillp(0)
 	circ(bbl.x, bbl.y, r, bbl.dead_t and White or Blue)
 	-- sparkle
 	if r>3 then
@@ -219,7 +222,7 @@ end
 
 function draw_config()
 	for i=1,#cfgs do
-		draw_config_item(i, 4, 4+14*(i-1))
+		draw_config_item(i, 2, 3+14*(i-1))
 	end
 end
 
