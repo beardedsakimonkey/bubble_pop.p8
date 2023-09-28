@@ -1,5 +1,6 @@
 Black,DarkBlue,DarkPurple,DarkGreen,Brown,DarkGray,LightGray,White,Red,Orange,
 Yellow,Green,Blue,Indigo,Pink,Peach = 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+BG=Brown
 
 bbls={}
 prts={}
@@ -7,14 +8,12 @@ prt_themes = {}
 f=0
 cartdata('tubeman_bubble_pop')
 score=dget(0) or 0
-local speedup,multipop = 1,2
+speedup,multipop=1,2
 cfgs={
 	[speedup]={spr=0, v=0},
 	[multipop]={spr=1, v=0},
 }
 sel=1
-
-BG=Brown
 
 function _init()
 	poke(0X5f5d, 8) -- key repeat delay
@@ -22,6 +21,8 @@ function _init()
 	music(0)
 	init_particle_themes()
 end
+
+-- bubbles ---------------------------------------------------------------------
 
 function count_bubbles()
 	local fake, real = 0, 0
@@ -35,8 +36,6 @@ function count_bubbles()
 	end)
 	return fake, real
 end
-
--- bubbles ---------------------------------------------------------------------
 
 function spawn_bubbles()
 	local num_fake, num_real = count_bubbles()
@@ -142,7 +141,7 @@ function init_particle_themes()
 	end
 end
 
-function spawn_particles(bbl)
+function spawn_particle(bbl)
 	local i = cfgs[multipop].v==0 and (score%#prt_themes) or rnd(#prt_themes)\1
 	local theme = prt_themes[i+1]
 	for _=1, max(8, bbl.r*3) do
@@ -161,6 +160,15 @@ function spawn_particles(bbl)
 			t=0,
 			max_t=5+rnd(20)\1,
 		})
+	end
+end
+
+function spawn_particles()
+	for bbl in all(bbls) do
+		if bbl.dead_t==4 then
+			spawn_particle(bbl)
+			del(bbls, bbl)
+		end
 	end
 end
 
@@ -202,9 +210,10 @@ function draw_config_item(i, _x, _y)
 	print('▶', x+(i==sel and btn(➡️) and 1 or 0), y, LightGray)
 	x,y=_x+4,_y+7
 	local v = cfgs[i].v
-	rectfill(x, y, x+3, y, v>=1 and Green or DarkBlue); x+=5
-	rectfill(x, y, x+3, y, v>=2 and Green or DarkBlue); x+=5
-	rectfill(x, y, x+3, y, v==3 and Green or DarkBlue); x+=5
+	for j=1,3 do
+		local x = x+(j-1)*5
+		rectfill(x, y, x+3, y, v>=j and Green or DarkBlue)
+	end
 	pal(0)
 end
 
@@ -240,18 +249,13 @@ function pop_bubbles()
 end
 
 function _update()
-	for bbl in all(bbls) do
-		if bbl.dead_t==4 then
-			spawn_particles(bbl)
-			del(bbls, bbl)
-		end
-	end
 	if (btnp(🅾️)) pop_bubbles()
 	if (btnp(❎)) pop_bubbles()
 	update_config()
-	spawn_bubbles()
 	update_bubbles()
+	spawn_bubbles()
 	update_particles()
+	spawn_particles()
 	f+=1
 end
 
