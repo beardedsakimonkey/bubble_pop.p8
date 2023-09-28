@@ -7,6 +7,13 @@ prt_themes = {}
 f=0
 cartdata('tubeman_bubble_pop')
 score=dget(0) or 0
+local speedup,multipop = 1,2
+cfgs={
+	[speedup]={spr=0, v=0},
+	[multipop]={spr=1, v=0},
+}
+sel=1
+
 BG=Brown
 
 function _init()
@@ -47,7 +54,7 @@ function spawn_bubbles()
 		add(bbls, bbl, 1)
 	end
 
-	if f%flr(sqrt(num_real)*2)==0 then
+	if f%(sqrt(num_real)*2\(cfgs[speedup].v+1))==0 then
 		add(bbls, {
 			x=64+flr(rnd(64))-32, y=130,
 			dx=nil, dy=nil,
@@ -64,10 +71,10 @@ function update_bubbles()
 	for bbl in all(bbls) do
 		if (bbl.dead_t) bbl.dead_t+=1
 		local t = bbl.fake and bbl.t/4 or bbl.t
-		local slow = bbl.fake and 8-bbl.max_r or 2
+		local slow = bbl.fake and 8-bbl.max_r or lshr(4, cfgs[speedup].v)
 		bbl.dx = cos(bbl.p+t/360*4) * sin(bbl.p+t/360) / slow
 		bbl.dy = (cos(bbl.p+t/180*4) * sin(bbl.p+t/180))/4 - 2*bbl.p / slow
-		if (not bbl.fake) bbl.dy = min(-0.2, bbl.dy)
+		if (not bbl.fake) bbl.dy = min(-0.4, bbl.dy)
 		bbl.x += bbl.dx
 		bbl.y += bbl.dy
 		local v = bbl.fake and 125 or 130
@@ -90,9 +97,6 @@ end
 
 function draw_real_bubble(bbl)
 	local r = bbl.r-(bbl.dead_t or 0)
-	fillp(▒)
-	circfill(bbl.x, bbl.y, r, DarkBlue)
-	fillp(0)
 	circ(bbl.x, bbl.y, r, bbl.dead_t and White or Blue)
 	-- sparkle
 	if r>3 then
@@ -139,7 +143,8 @@ function init_particle_themes()
 end
 
 function spawn_particles(bbl)
-	local theme = prt_themes[score % #prt_themes + 1]
+	local i = cfgs[multipop].v==0 and (score%#prt_themes) or rnd(#prt_themes)\1
+	local theme = prt_themes[i+1]
 	for _=1, max(8, bbl.r*3) do
 		local v = rnd()
 		local xoff = cos(v)*bbl.r
@@ -180,6 +185,35 @@ function draw_particles()
 	end
 end
 
+-- config -----------------------------------------------------------------------
+
+function update_config()
+	if (btnp(➡️)) cfgs[sel].v=min(cfgs[sel].v+1, 3)
+	if (btnp(⬅️)) cfgs[sel].v=max(cfgs[sel].v-1, 0)
+	if (btnp(⬆️)) sel=max(sel-1, 1)
+	if (btnp(⬇️)) sel=min(sel+1, #cfgs)
+end
+
+function draw_config_item(i, _x, _y)
+	if (i~=sel) pal({[LightGray]=DarkBlue, [Green]=DarkGray})
+	local x,y = _x,_y
+	print('◀', x+(i==sel and btn(⬅️) and -1 or 0), y, LightGray); x+=8
+	spr(cfgs[i].spr, x, y-1); x+=11
+	print('▶', x+(i==sel and btn(➡️) and 1 or 0), y, LightGray)
+	x,y=_x+4,_y+7
+	local v = cfgs[i].v
+	rectfill(x, y, x+3, y, v>=1 and Green or DarkBlue); x+=5
+	rectfill(x, y, x+3, y, v>=2 and Green or DarkBlue); x+=5
+	rectfill(x, y, x+3, y, v==3 and Green or DarkBlue); x+=5
+	pal(0)
+end
+
+function draw_config()
+	for i=1,#cfgs do
+		draw_config_item(i, 4, 4+14*(i-1))
+	end
+end
+
 --------------------------------------------------------------------------------
 
 function highest_bubble()
@@ -193,13 +227,15 @@ function highest_bubble()
 	return highest
 end
 
-function pop_bubble()
-	local bbl = highest_bubble()
-	if bbl then
-		score+=1
-		bbl.dead_t=0
-		sfx(3)
-		dset(0, score)
+function pop_bubbles()
+	for _=0,cfgs[multipop].v do
+		local bbl = highest_bubble()
+		if bbl then
+			score+=1
+			bbl.dead_t=0
+			sfx(3)
+			dset(0, score)
+		end
 	end
 end
 
@@ -210,8 +246,9 @@ function _update()
 			del(bbls, bbl)
 		end
 	end
-	if (btnp(🅾️)) pop_bubble()
-	if (btnp(❎)) pop_bubble()
+	if (btnp(🅾️)) pop_bubbles()
+	if (btnp(❎)) pop_bubbles()
+	update_config()
 	spawn_bubbles()
 	update_bubbles()
 	update_particles()
@@ -222,6 +259,7 @@ function _draw()
 	pal(BG, 129, 1)
 	cls(BG)
 	draw_bubbles()
+	draw_config()
 	draw_particles()
 	print(score, 127-(#tostring(score)*4), 2, DarkBlue)
 end
