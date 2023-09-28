@@ -19,7 +19,7 @@ end
 function count_bubbles()
 	local fake, real = 0, 0
 	foreach(bbls, function(bbl)
-		if bbl.dead_t then return end
+		if (bbl.dead_t) return
 		if bbl.fake then
 			fake+=1
 		else
@@ -96,10 +96,10 @@ function draw_real_bubble(bbl)
 	circ(bbl.x, bbl.y, r, bbl.dead_t and White or Blue)
 	-- sparkle
 	if r>3 then
-		local sr = mid(r\6, 0, 1)
 		circ(flr(bbl.x)+r/2,
 		     ceil(bbl.y)-r/2,
-		     sr, LightGray)
+		     mid(r\8, 0, 1),
+			 LightGray)
 	end
 end
 
@@ -140,7 +140,7 @@ end
 
 function spawn_particles(bbl)
 	local theme = prt_themes[score % #prt_themes + 1]
-	for _=1, max(5, bbl.r*3) do
+	for _=1, max(8, bbl.r*3) do
 		local v = rnd()
 		local xoff = cos(v)*bbl.r
 		local yoff = sin(v)*bbl.r
@@ -148,8 +148,8 @@ function spawn_particles(bbl)
 		add(prts, {
 			x=bbl.x+xoff,
 			y=bbl.y+yoff,
-			dx=rnd(bbl.r/8) * (2-r+1)/2 * (xoff>0 and 1 or -1),
-			dy=rnd(bbl.r/8) * (2-r+1)/2 * (yoff>0 and 1 or -1),
+			dx=max(0.4,rnd(bbl.r/8)) * (2-r+1)/2 * (xoff>0 and 1 or -1),
+			dy=max(0.4,rnd(bbl.r/8)) * (2-r+1)/2 * (yoff>0 and 1 or -1),
 			r=r,
 			c=nil,
 			theme=theme,
