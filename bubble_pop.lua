@@ -8,10 +8,10 @@ prt_themes = {}
 f=0
 cartdata('tubeman_bubble_pop')
 score=dget(0) or 0
-speedup,multipop=1,2
+multipop,speedup=1,2
 ctrls={
-	[speedup]={spr=0, v=0},
 	[multipop]={spr=1, v=0},
+	[speedup]={spr=0, v=0},
 }
 sel=1
 
